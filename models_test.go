@@ -27,6 +27,14 @@ type WithPointer struct {
 	FloatVal *float32 `jsonapi:"attr,float-val"`
 }
 
+type Numeric struct {
+	ID    string    `jsonapi:"primary,numeric"`
+	Int   int       `jsonapi:"attr,int,omitempty"`
+	Uint  uint      `jsonapi:"attr,uint,omitempty"`
+	Float float64   `jsonapi:"attr,float,omitempty"`
+	Cmplx complex64 `jsonapi:"attr,cmplx,omitempty"`
+}
+
 type Timestamp struct {
 	ID   int        `jsonapi:"primary,timestamps"`
 	Time time.Time  `jsonapi:"attr,timestamp,iso8601"`

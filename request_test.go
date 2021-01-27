@@ -3,7 +3,6 @@ package jsonapi_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"reflect"
 	"sort"
@@ -13,6 +12,255 @@ import (
 
 	"github.com/cheeryfella/jsonapi"
 )
+
+func unmarshalSamplePayload() (*Blog, error) {
+	in := samplePayload()
+	out := new(Blog)
+
+	if err := jsonapi.UnmarshalPayload(in, out); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+func samplePayloadWithoutIncluded() map[string]interface{} {
+	return map[string]interface{}{
+		"data": map[string]interface{}{
+			"type": "posts",
+			"id":   "1",
+			"attributes": map[string]interface{}{
+				"body":  "Hello",
+				"title": "World",
+			},
+			"relationships": map[string]interface{}{
+				"comments": map[string]interface{}{
+					"data": []interface{}{
+						map[string]interface{}{
+							"type": "comments",
+							"id":   "123",
+						},
+						map[string]interface{}{
+							"type": "comments",
+							"id":   "456",
+						},
+					},
+				},
+				"latest_comment": map[string]interface{}{
+					"data": map[string]interface{}{
+						"type": "comments",
+						"id":   "55555",
+					},
+				},
+			},
+		},
+	}
+}
+
+func samplePayload() io.Reader {
+	payload := &jsonapi.OnePayload{
+		Data: &jsonapi.Node{
+			Type: "blogs",
+			Attributes: map[string]interface{}{
+				"title":      "New blog",
+				"created_at": 1436216820,
+				"view_count": 1000,
+			},
+			Relationships: map[string]interface{}{
+				"posts": &jsonapi.RelationshipManyNode{
+					Data: []*jsonapi.Node{
+						{
+							Type: "posts",
+							Attributes: map[string]interface{}{
+								"title": "Foo",
+								"body":  "Bar",
+							},
+							ClientID: "1",
+						},
+						{
+							Type: "posts",
+							Attributes: map[string]interface{}{
+								"title": "X",
+								"body":  "Y",
+							},
+							ClientID: "2",
+						},
+					},
+				},
+				"current_post": &jsonapi.RelationshipOneNode{
+					Data: &jsonapi.Node{
+						Type: "posts",
+						Attributes: map[string]interface{}{
+							"title": "Bas",
+							"body":  "Fuubar",
+						},
+						ClientID: "3",
+						Relationships: map[string]interface{}{
+							"comments": &jsonapi.RelationshipManyNode{
+								Data: []*jsonapi.Node{
+									{
+										Type: "comments",
+										Attributes: map[string]interface{}{
+											"body": "Great post!",
+										},
+										ClientID: "4",
+									},
+									{
+										Type: "comments",
+										Attributes: map[string]interface{}{
+											"body": "Needs some work!",
+										},
+										ClientID: "5",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	out := bytes.NewBuffer(nil)
+	json.NewEncoder(out).Encode(payload)
+
+	return out
+}
+
+func samplePayloadWithID() io.Reader {
+	payload := &jsonapi.OnePayload{
+		Data: &jsonapi.Node{
+			ID:   "2",
+			Type: "blogs",
+			Attributes: map[string]interface{}{
+				"title":      "New blog",
+				"view_count": 1000,
+			},
+		},
+	}
+
+	out := bytes.NewBuffer(nil)
+	json.NewEncoder(out).Encode(payload)
+
+	return out
+}
+
+func samplePayloadWithBadTypes(m map[string]interface{}) io.Reader {
+	payload := &jsonapi.OnePayload{
+		Data: &jsonapi.Node{
+			ID:         "2",
+			Type:       "badtypes",
+			Attributes: m,
+		},
+	}
+
+	out := bytes.NewBuffer(nil)
+	json.NewEncoder(out).Encode(payload)
+
+	return out
+}
+
+func sampleWithPointerPayload(m map[string]interface{}) io.Reader {
+	payload := &jsonapi.OnePayload{
+		Data: &jsonapi.Node{
+			ID:         "2",
+			Type:       "with-pointers",
+			Attributes: m,
+		},
+	}
+
+	out := bytes.NewBuffer(nil)
+	json.NewEncoder(out).Encode(payload)
+
+	return out
+}
+
+func testModel() *Blog {
+	return &Blog{
+		ID:        5,
+		ClientID:  "1",
+		Title:     "Title 1",
+		CreatedAt: time.Now(),
+		Posts: []*Post{
+			{
+				ID:    1,
+				Title: "Foo",
+				Body:  "Bar",
+				Comments: []*Comment{
+					{
+						ID:   1,
+						Body: "foo",
+					},
+					{
+						ID:   2,
+						Body: "bar",
+					},
+				},
+				LatestComment: &Comment{
+					ID:   1,
+					Body: "foo",
+				},
+			},
+			{
+				ID:    2,
+				Title: "Fuubar",
+				Body:  "Bas",
+				Comments: []*Comment{
+					{
+						ID:   1,
+						Body: "foo",
+					},
+					{
+						ID:   3,
+						Body: "bas",
+					},
+				},
+				LatestComment: &Comment{
+					ID:   1,
+					Body: "foo",
+				},
+			},
+		},
+		CurrentPost: &Post{
+			ID:    1,
+			Title: "Foo",
+			Body:  "Bar",
+			Comments: []*Comment{
+				{
+					ID:   1,
+					Body: "foo",
+				},
+				{
+					ID:   2,
+					Body: "bar",
+				},
+			},
+			LatestComment: &Comment{
+				ID:   1,
+				Body: "foo",
+			},
+		},
+	}
+}
+
+func samplePayloadWithSideloaded() io.Reader {
+	testModel := testModel()
+
+	out := bytes.NewBuffer(nil)
+	jsonapi.MarshalPayload(out, testModel)
+
+	return out
+}
+
+func sampleSerializedEmbeddedTestModel() *Blog {
+	out := bytes.NewBuffer(nil)
+	jsonapi.MarshalOnePayloadEmbedded(out, testModel())
+
+	blog := new(Blog)
+	jsonapi.UnmarshalPayload(out, blog)
+
+	return blog
+}
 
 func TestUnmarshall_attrStringSlice(t *testing.T) {
 	out := &Book{}
@@ -263,18 +511,18 @@ func TestUnmarshalInvalidJSON(t *testing.T) {
 }
 
 func TestUnmarshalInvalidJSON_BadType(t *testing.T) {
-	var badTypeTests = []struct {
+	var badTypeTests = map[string]struct {
 		Field    string
 		BadValue interface{}
 		Error    error
 	}{ // The `Field` values here correspond to the `ModelBadTypes` jsonapi fields.
-		{Field: "string_field", BadValue: 0, Error: jsonapi.ErrUnknownFieldNumberType},  // Expected string.
-		{Field: "float_field", BadValue: "A string.", Error: jsonapi.ErrInvalidType},    // Expected float64.
-		{Field: "time_field", BadValue: "A string.", Error: jsonapi.ErrInvalidTime},     // Expected int64.
-		{Field: "time_ptr_field", BadValue: "A string.", Error: jsonapi.ErrInvalidTime}, // Expected *time / int64.
+		"String Field": {Field: "string_field", BadValue: 0, Error: jsonapi.ErrInvalidType},  // Expected string.
+		"Float Field": {Field: "float_field", BadValue: "A string.", Error: jsonapi.ErrInvalidType},    // Expected float64.
+		"Time Field": {Field: "time_field", BadValue: "A string.", Error: jsonapi.ErrInvalidTime},     // Expected int64.
+		"TimePtr Field": {Field: "time_ptr_field", BadValue: "A string.", Error: jsonapi.ErrInvalidTime}, // Expected *time / int64.
 	}
-	for _, test := range badTypeTests {
-		t.Run(fmt.Sprintf("Test_%s", test.Field), func(t *testing.T) {
+	for name, test := range badTypeTests {
+		t.Run(name, func(t *testing.T) {
 			out := new(ModelBadTypes)
 			in := map[string]interface{}{}
 			in[test.Field] = test.BadValue
@@ -286,7 +534,7 @@ func TestUnmarshalInvalidJSON_BadType(t *testing.T) {
 				t.Fatalf("Expected error due to invalid type.")
 			}
 			if err.Error() != expectedErrorMessage {
-				t.Fatalf("Unexpected error message: %s", err.Error())
+				t.Fatalf("Expected %s - actual: %s", expectedErrorMessage, err.Error())
 			}
 		})
 	}
@@ -642,17 +890,6 @@ func TestUnmarshalNestedRelationshipsEmbedded_withClientIDs(t *testing.T) {
 	}
 }
 
-func unmarshalSamplePayload() (*Blog, error) {
-	in := samplePayload()
-	out := new(Blog)
-
-	if err := jsonapi.UnmarshalPayload(in, out); err != nil {
-		return nil, err
-	}
-
-	return out, nil
-}
-
 func TestUnmarshalManyPayload(t *testing.T) {
 	sample := map[string]interface{}{
 		"data": []interface{}{
@@ -859,244 +1096,6 @@ func TestUnmarshalCustomTypeAttributes_ErrInvalidType(t *testing.T) {
 	if err != jsonapi.ErrInvalidType {
 		t.Fatalf("Expected error to be %v, was %v", jsonapi.ErrInvalidType, err)
 	}
-}
-
-func samplePayloadWithoutIncluded() map[string]interface{} {
-	return map[string]interface{}{
-		"data": map[string]interface{}{
-			"type": "posts",
-			"id":   "1",
-			"attributes": map[string]interface{}{
-				"body":  "Hello",
-				"title": "World",
-			},
-			"relationships": map[string]interface{}{
-				"comments": map[string]interface{}{
-					"data": []interface{}{
-						map[string]interface{}{
-							"type": "comments",
-							"id":   "123",
-						},
-						map[string]interface{}{
-							"type": "comments",
-							"id":   "456",
-						},
-					},
-				},
-				"latest_comment": map[string]interface{}{
-					"data": map[string]interface{}{
-						"type": "comments",
-						"id":   "55555",
-					},
-				},
-			},
-		},
-	}
-}
-
-func samplePayload() io.Reader {
-	payload := &jsonapi.OnePayload{
-		Data: &jsonapi.Node{
-			Type: "blogs",
-			Attributes: map[string]interface{}{
-				"title":      "New blog",
-				"created_at": 1436216820,
-				"view_count": 1000,
-			},
-			Relationships: map[string]interface{}{
-				"posts": &jsonapi.RelationshipManyNode{
-					Data: []*jsonapi.Node{
-						{
-							Type: "posts",
-							Attributes: map[string]interface{}{
-								"title": "Foo",
-								"body":  "Bar",
-							},
-							ClientID: "1",
-						},
-						{
-							Type: "posts",
-							Attributes: map[string]interface{}{
-								"title": "X",
-								"body":  "Y",
-							},
-							ClientID: "2",
-						},
-					},
-				},
-				"current_post": &jsonapi.RelationshipOneNode{
-					Data: &jsonapi.Node{
-						Type: "posts",
-						Attributes: map[string]interface{}{
-							"title": "Bas",
-							"body":  "Fuubar",
-						},
-						ClientID: "3",
-						Relationships: map[string]interface{}{
-							"comments": &jsonapi.RelationshipManyNode{
-								Data: []*jsonapi.Node{
-									{
-										Type: "comments",
-										Attributes: map[string]interface{}{
-											"body": "Great post!",
-										},
-										ClientID: "4",
-									},
-									{
-										Type: "comments",
-										Attributes: map[string]interface{}{
-											"body": "Needs some work!",
-										},
-										ClientID: "5",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	out := bytes.NewBuffer(nil)
-	json.NewEncoder(out).Encode(payload)
-
-	return out
-}
-
-func samplePayloadWithID() io.Reader {
-	payload := &jsonapi.OnePayload{
-		Data: &jsonapi.Node{
-			ID:   "2",
-			Type: "blogs",
-			Attributes: map[string]interface{}{
-				"title":      "New blog",
-				"view_count": 1000,
-			},
-		},
-	}
-
-	out := bytes.NewBuffer(nil)
-	json.NewEncoder(out).Encode(payload)
-
-	return out
-}
-
-func samplePayloadWithBadTypes(m map[string]interface{}) io.Reader {
-	payload := &jsonapi.OnePayload{
-		Data: &jsonapi.Node{
-			ID:         "2",
-			Type:       "badtypes",
-			Attributes: m,
-		},
-	}
-
-	out := bytes.NewBuffer(nil)
-	json.NewEncoder(out).Encode(payload)
-
-	return out
-}
-
-func sampleWithPointerPayload(m map[string]interface{}) io.Reader {
-	payload := &jsonapi.OnePayload{
-		Data: &jsonapi.Node{
-			ID:         "2",
-			Type:       "with-pointers",
-			Attributes: m,
-		},
-	}
-
-	out := bytes.NewBuffer(nil)
-	json.NewEncoder(out).Encode(payload)
-
-	return out
-}
-
-func testModel() *Blog {
-	return &Blog{
-		ID:        5,
-		ClientID:  "1",
-		Title:     "Title 1",
-		CreatedAt: time.Now(),
-		Posts: []*Post{
-			{
-				ID:    1,
-				Title: "Foo",
-				Body:  "Bar",
-				Comments: []*Comment{
-					{
-						ID:   1,
-						Body: "foo",
-					},
-					{
-						ID:   2,
-						Body: "bar",
-					},
-				},
-				LatestComment: &Comment{
-					ID:   1,
-					Body: "foo",
-				},
-			},
-			{
-				ID:    2,
-				Title: "Fuubar",
-				Body:  "Bas",
-				Comments: []*Comment{
-					{
-						ID:   1,
-						Body: "foo",
-					},
-					{
-						ID:   3,
-						Body: "bas",
-					},
-				},
-				LatestComment: &Comment{
-					ID:   1,
-					Body: "foo",
-				},
-			},
-		},
-		CurrentPost: &Post{
-			ID:    1,
-			Title: "Foo",
-			Body:  "Bar",
-			Comments: []*Comment{
-				{
-					ID:   1,
-					Body: "foo",
-				},
-				{
-					ID:   2,
-					Body: "bar",
-				},
-			},
-			LatestComment: &Comment{
-				ID:   1,
-				Body: "foo",
-			},
-		},
-	}
-}
-
-func samplePayloadWithSideloaded() io.Reader {
-	testModel := testModel()
-
-	out := bytes.NewBuffer(nil)
-	jsonapi.MarshalPayload(out, testModel)
-
-	return out
-}
-
-func sampleSerializedEmbeddedTestModel() *Blog {
-	out := bytes.NewBuffer(nil)
-	jsonapi.MarshalOnePayloadEmbedded(out, testModel())
-
-	blog := new(Blog)
-	jsonapi.UnmarshalPayload(out, blog)
-
-	return blog
 }
 
 func TestUnmarshalNestedStructPtr(t *testing.T) {
@@ -1311,5 +1310,60 @@ func TestUnmarshalNestedStructSlice(t *testing.T) {
 	if out.Teams[0].Members[0].Firstname != "Philip J." {
 		t.Fatalf("Nested struct not unmarshalled: Expected `Philip J.` but got `%s`",
 			out.Teams[0].Members[0].Firstname)
+	}
+}
+
+func TestNumericTypes(t *testing.T)  {
+	var tests = map[string]struct{
+		In map[string]interface{}
+	}{
+		"Int": {
+			In: map[string]interface{}{
+				"int": 2,
+			},
+		},
+		"Uint": {
+			In: map[string]interface{}{
+				"uint": 7,
+			},
+		},
+		"Float": {
+			In: map[string]interface{}{
+				"float": 14.0,
+			},
+		},
+		//"Cmplx": {
+		//	In: map[string]interface{}{
+		//		"cmplx": 1 + 4i,
+		//	},
+		//},
+
+	}
+	type pLoad struct {
+
+	}
+	out := new(Numeric)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			payload := &jsonapi.OnePayload{
+				Data: &jsonapi.Node{
+					ID:         "1",
+					Type:       "numeric",
+					Attributes: test.In,
+				},
+			}
+
+			tmp, err := json.Marshal(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = jsonapi.UnmarshalPayload(bytes.NewReader(tmp), out)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+
+
 	}
 }
