@@ -414,7 +414,7 @@ func unmarshalAttribute(
 	}
 
 	// JSON value was a float (numeric)
-	if value.Kind() == reflect.Float64 {
+	if isFieldNumeric(value.Kind(), fieldValue.Type().Kind()) {
 		value, err = handleNumeric(attribute, fieldType, fieldValue)
 		return
 	}
@@ -634,4 +634,20 @@ func handleStructSlice(
 	}
 
 	return models, nil
+}
+
+func isFieldNumeric(value, kind reflect.Kind) bool {
+	switch value {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+	default:
+		return false
+	}
+
+	switch kind {
+	case reflect.Int, reflect.Uint, reflect.Uintptr, reflect.Float32, reflect.Float64, reflect.Ptr:
+		return true
+	}
+	return false
 }
