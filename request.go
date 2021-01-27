@@ -174,7 +174,8 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 			break
 		}
 
-		if annotation == annotationPrimary {
+		switch {
+		case annotation == annotationPrimary:
 			if data.ID == "" {
 				continue
 			}
@@ -226,13 +227,13 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 			}
 
 			assign(fieldValue, idValue)
-		} else if annotation == annotationClientID {
+		case annotation == annotationClientID:
 			if data.ClientID == "" {
 				continue
 			}
 
 			fieldValue.Set(reflect.ValueOf(data.ClientID))
-		} else if annotation == annotationAttribute {
+		case annotation == annotationAttribute:
 			attributes := data.Attributes
 
 			if attributes == nil || len(data.Attributes) == 0 {
@@ -254,7 +255,7 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 			}
 
 			assign(fieldValue, value)
-		} else if annotation == annotationRelation {
+		case annotation == annotationRelation:
 			isSlice := fieldValue.Type().Kind() == reflect.Slice
 
 			if data.Relationships == nil || data.Relationships[args[1]] == nil {
@@ -323,8 +324,7 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 				fieldValue.Set(m)
 
 			}
-
-		} else {
+		default:
 			er = fmt.Errorf(unsupportedStructTagMsg, annotation)
 		}
 	}

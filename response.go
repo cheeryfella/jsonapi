@@ -230,7 +230,8 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 			break
 		}
 
-		if annotation == annotationPrimary {
+		switch {
+		case annotation == annotationPrimary:
 			v := fieldValue
 
 			// Deal with PTRS
@@ -277,12 +278,13 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 			}
 
 			node.Type = args[1]
-		} else if annotation == annotationClientID {
+
+		case annotation == annotationClientID:
 			clientID := fieldValue.String()
 			if clientID != "" {
 				node.ClientID = clientID
 			}
-		} else if annotation == annotationAttribute {
+		case annotation == annotationAttribute:
 			var omitEmpty, iso8601 bool
 
 			if len(args) > 2 {
@@ -349,7 +351,8 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 					node.Attributes[args[1]] = fieldValue.Interface()
 				}
 			}
-		} else if annotation == annotationRelation {
+
+		case annotation == annotationRelation:
 			var omitEmpty bool
 
 			//add support for 'omitempty' struct tag for marshaling as absent
@@ -442,7 +445,8 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				}
 			}
 
-		} else {
+
+		default:
 			er = ErrBadJSONAPIStructTag
 			break
 		}
