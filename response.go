@@ -224,12 +224,6 @@ func visitModelNode(model interface{}, included *map[string]*ResourceObj,
 
 		annotation := args[0]
 
-		if (annotation == annotationClientID && len(args) != 1) ||
-			(annotation != annotationClientID && len(args) < 2) {
-			er = ErrBadJSONAPIStructTag
-			break
-		}
-
 		switch {
 		case annotation == annotationPrimary:
 			v := fieldValue
@@ -279,11 +273,6 @@ func visitModelNode(model interface{}, included *map[string]*ResourceObj,
 
 			node.Type = args[1]
 
-		case annotation == annotationClientID:
-			clientID := fieldValue.String()
-			if clientID != "" {
-				node.ClientID = clientID
-			}
 		case annotation == annotationAttribute:
 			var omitEmpty, iso8601 bool
 
