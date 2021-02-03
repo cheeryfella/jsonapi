@@ -377,9 +377,14 @@ func unmarshalAttribute(
 	fieldType := structField.Type
 
 	value, err = handleField(attribute, args, fieldType, fieldValue)
-	if err != nil {
-		return reflect.Value{}, newErrUnsupportedPtrType(
-			reflect.ValueOf(attribute), fieldType, structField)
+	switch{
+	case err == ErrInvalidType:
+		return reflect.Value{}, ErrInvalidType
+	case err == ErrInvalidISO8601:
+		return reflect.Value{}, ErrInvalidISO8601
+	case err != nil:
+		return reflect.Value{},
+		newErrUnsupportedPtrType(reflect.ValueOf(attribute), fieldType, structField)
 	}
 	return
 }
@@ -437,9 +442,20 @@ func handleField(
 		val, err := handleString(attribute, fieldType, fieldValue)
 		return reflect.ValueOf(val), err
 	case reflect.Slice:
-		return handleSlice(attribute, args, fieldType, fieldValue)
+		switch reflect.TypeOf(fieldValue.Interface()).Elem().Kind() {
+		case reflect.Struct:
+			return handleStructSlice(attribute, fieldValue)
+		default:
+			return handleSlice(attribute, args, fieldType, fieldValue)
+		}
+
 	case reflect.Ptr:
 		return handlePointer(attribute, args, fieldType, fieldValue)
+	case reflect.Struct:
+		if fieldType.ConvertibleTo(reflect.TypeOf(time.Time{})) {
+			return handleTime(attribute, args, fieldValue)
+		}
+		return handleStruct(attribute,fieldValue)
 	}
 
 	return
@@ -518,8 +534,11 @@ func handleNumeric(
 // handleInt
 func handleInt(attribute interface{}) (int, error) {
 	v := reflect.ValueOf(attribute)
-	floatValue := v.Interface().(float64)
 
+	floatValue, ok := v.Interface().(float64)
+	if !ok {
+		return 0, ErrInvalidType
+	}
 	return int(floatValue), nil
 }
 
