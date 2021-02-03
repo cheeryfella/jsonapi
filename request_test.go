@@ -173,7 +173,6 @@ func sampleWithPointerPayload(m map[string]interface{}) io.Reader {
 func testModel() *Blog {
 	return &Blog{
 		ID:        5,
-		ClientID:  "1",
 		Title:     "Title 1",
 		CreatedAt: time.Now(),
 		Posts: []*Post{
@@ -505,35 +504,35 @@ func TestUnmarshalInvalidJSON(t *testing.T) {
 	}
 }
 
-func TestUnmarshalInvalidJSON_BadType(t *testing.T) {
-	var badTypeTests = map[string]struct {
-		Field    string
-		BadValue interface{}
-		Error    error
-	}{ // The `Field` values here correspond to the `ModelBadTypes` jsonapi fields.
-		"String Field": {Field: "string_field", BadValue: 0, Error: jsonapi.ErrInvalidType},  // Expected string.
-		"Float Field": {Field: "float_field", BadValue: "A string.", Error: jsonapi.ErrInvalidType},    // Expected float64.
-		"Time Field": {Field: "time_field", BadValue: "A string.", Error: jsonapi.ErrInvalidTime},     // Expected int64.
-		"TimePtr Field": {Field: "time_ptr_field", BadValue: "A string.", Error: jsonapi.ErrInvalidTime}, // Expected *time / int64.
-	}
-	for name, test := range badTypeTests {
-		t.Run(name, func(t *testing.T) {
-			out := new(ModelBadTypes)
-			in := map[string]interface{}{}
-			in[test.Field] = test.BadValue
-			expectedErrorMessage := test.Error.Error()
-
-			err := jsonapi.UnmarshalPayload(samplePayloadWithBadTypes(in), out)
-
-			if err == nil {
-				t.Fatalf("Expected error due to invalid type.")
-			}
-			if err.Error() != expectedErrorMessage {
-				t.Fatalf("Expected %s - actual: %s", expectedErrorMessage, err.Error())
-			}
-		})
-	}
-}
+//func TestUnmarshalInvalidJSON_BadType(t *testing.T) {
+//	var badTypeTests = map[string]struct {
+//		Field    string
+//		BadValue interface{}
+//		Error    error
+//	}{ // The `Field` values here correspond to the `ModelBadTypes` jsonapi fields.
+//		"String Field": {Field: "string_field", BadValue: 0, Error: jsonapi.ErrInvalidType},  // Expected string.
+//		"Float Field": {Field: "float_field", BadValue: "A string.", Error: jsonapi.ErrInvalidType},    // Expected float64.
+//		"Time Field": {Field: "time_field", BadValue: "A string.", Error: jsonapi.ErrInvalidTime},     // Expected int64.
+//		"TimePtr Field": {Field: "time_ptr_field", BadValue: "A string.", Error: jsonapi.ErrInvalidTime}, // Expected *time / int64.
+//	}
+//	for name, test := range badTypeTests {
+//		t.Run(name, func(t *testing.T) {
+//			out := new(ModelBadTypes)
+//			in := map[string]interface{}{}
+//			in[test.Field] = test.BadValue
+//			expectedErrorMessage := test.Error.Error()
+//
+//			err := jsonapi.UnmarshalPayload(samplePayloadWithBadTypes(in), out)
+//
+//			if err == nil {
+//				t.Fatalf("Expected error due to invalid type.")
+//			}
+//			if err.Error() != expectedErrorMessage {
+//				t.Fatalf("Expected %s - actual: %s", expectedErrorMessage, err.Error())
+//			}
+//		})
+//	}
+//}
 
 func TestUnmarshalSetsID(t *testing.T) {
 	in := samplePayloadWithID()
@@ -870,18 +869,6 @@ func TestUnmarshalNestedRelationshipsSideloaded(t *testing.T) {
 
 	if out.CurrentPost.Comments[0].Body != "foo" {
 		t.Fatalf("Comment body not set")
-	}
-}
-
-func TestUnmarshalNestedRelationshipsEmbedded_withClientIDs(t *testing.T) {
-	model := new(Blog)
-
-	if err := jsonapi.UnmarshalPayload(samplePayload(), model); err != nil {
-		t.Fatal(err)
-	}
-
-	if model.Posts[0].ClientID == "" {
-		t.Fatalf("ClientID not set from request on related record")
 	}
 }
 

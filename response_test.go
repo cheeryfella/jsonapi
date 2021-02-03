@@ -705,7 +705,6 @@ func TestMarshalPayloadWithoutIncluded(t *testing.T) {
 	data := &Post{
 		ID:       1,
 		BlogID:   2,
-		ClientID: "123e4567-e89b-12d3-a456-426655440000",
 		Title:    "Foo",
 		Body:     "Bar",
 		Comments: []*Comment{
