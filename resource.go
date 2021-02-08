@@ -8,36 +8,35 @@ type Payloader interface {
 }
 
 // OnePayload is used to represent a generic JSON API payload where a single
-// resource (Node) was included as an {} in the "data" key
+// resource (ResourceObj) was included as an {} in the "data" key
 type OnePayload struct {
-	Data     *Node   `json:"data"`
-	Included []*Node `json:"included,omitempty"`
-	Links    *Links  `json:"links,omitempty"`
-	Meta     *Meta   `json:"meta,omitempty"`
+	Data     *ResourceObj   `json:"data"`
+	Included []*ResourceObj `json:"included,omitempty"`
+	Links    *Links         `json:"links,omitempty"`
+	Meta     *Meta          `json:"meta,omitempty"`
 }
 
 func (p *OnePayload) clearIncluded() {
-	p.Included = []*Node{}
+	p.Included = []*ResourceObj{}
 }
 
 // ManyPayload is used to represent a generic JSON API payload where many
 // resources (Nodes) were included in an [] in the "data" key
 type ManyPayload struct {
-	Data     []*Node `json:"data"`
-	Included []*Node `json:"included,omitempty"`
-	Links    *Links  `json:"links,omitempty"`
-	Meta     *Meta   `json:"meta,omitempty"`
+	Data     []*ResourceObj `json:"data"`
+	Included []*ResourceObj `json:"included,omitempty"`
+	Links    *Links         `json:"links,omitempty"`
+	Meta     *Meta          `json:"meta,omitempty"`
 }
 
 func (p *ManyPayload) clearIncluded() {
-	p.Included = []*Node{}
+	p.Included = []*ResourceObj{}
 }
 
-// Node is used to represent a generic JSON API Resource
-type Node struct {
+// ResourceObj is used to represent a generic JSON API Resource
+type ResourceObj struct {
 	Type          string                 `json:"type"`
 	ID            string                 `json:"id,omitempty"`
-	ClientID      string                 `json:"client-id,omitempty"`
 	Attributes    map[string]interface{} `json:"attributes,omitempty"`
 	Relationships map[string]interface{} `json:"relationships,omitempty"`
 	Links         *Links                 `json:"links,omitempty"`
@@ -46,17 +45,17 @@ type Node struct {
 
 // RelationshipOneNode is used to represent a generic has one JSON API relation
 type RelationshipOneNode struct {
-	Data  *Node  `json:"data"`
-	Links *Links `json:"links,omitempty"`
-	Meta  *Meta  `json:"meta,omitempty"`
+	Data  *ResourceObj `json:"data"`
+	Links *Links       `json:"links,omitempty"`
+	Meta  *Meta        `json:"meta,omitempty"`
 }
 
 // RelationshipManyNode is used to represent a generic has many JSON API
 // relation
 type RelationshipManyNode struct {
-	Data  []*Node `json:"data"`
-	Links *Links  `json:"links,omitempty"`
-	Meta  *Meta   `json:"meta,omitempty"`
+	Data  []*ResourceObj `json:"data"`
+	Links *Links         `json:"links,omitempty"`
+	Meta  *Meta          `json:"meta,omitempty"`
 }
 
 // Links is used to represent a `links` object.

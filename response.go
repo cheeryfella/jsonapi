@@ -132,7 +132,7 @@ func MarshalPayloadWithoutIncluded(w io.Writer, model interface{}) error {
 // payload and doesn't write out results. Useful is you use your JSON rendering
 // library.
 func marshalOne(model interface{}) (*OnePayload, error) {
-	included := make(map[string]*Node)
+	included := make(map[string]*ResourceObj)
 
 	rootNode, err := visitModelNode(model, &included, true)
 	if err != nil {
@@ -150,9 +150,9 @@ func marshalOne(model interface{}) (*OnePayload, error) {
 // library.
 func marshalMany(models []interface{}) (*ManyPayload, error) {
 	payload := &ManyPayload{
-		Data: []*Node{},
+		Data: []*ResourceObj{},
 	}
-	included := map[string]*Node{}
+	included := map[string]*ResourceObj{}
 
 	for _, model := range models {
 		node, err := visitModelNode(model, &included, true)
@@ -192,9 +192,9 @@ func MarshalOnePayloadEmbedded(w io.Writer, model interface{}) error {
 	return json.NewEncoder(w).Encode(payload)
 }
 
-func visitModelNode(model interface{}, included *map[string]*Node,
-	sideload bool) (*Node, error) {
-	node := new(Node)
+func visitModelNode(model interface{}, included *map[string]*ResourceObj,
+	sideload bool) (*ResourceObj, error) {
+	node := new(ResourceObj)
 
 	var er error
 	value := reflect.ValueOf(model)
@@ -223,12 +223,6 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 		}
 
 		annotation := args[0]
-
-		if (annotation == annotationClientID && len(args) != 1) ||
-			(annotation != annotationClientID && len(args) < 2) {
-			er = ErrBadJSONAPIStructTag
-			break
-		}
 
 		switch {
 		case annotation == annotationPrimary:
@@ -279,11 +273,6 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 
 			node.Type = args[1]
 
-		case annotation == annotationClientID:
-			clientID := fieldValue.String()
-			if clientID != "" {
-				node.ClientID = clientID
-			}
 		case annotation == annotationAttribute:
 			var omitEmpty, iso8601 bool
 
@@ -396,7 +385,7 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				relationship.Meta = relMeta
 
 				if sideload {
-					shallowNodes := []*Node{}
+					shallowNodes := []*ResourceObj{}
 					for _, n := range relationship.Data {
 						appendIncluded(included, n)
 						shallowNodes = append(shallowNodes, toShallowNode(n))
@@ -445,7 +434,6 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 				}
 			}
 
-
 		default:
 			er = ErrBadJSONAPIStructTag
 			break
@@ -471,16 +459,16 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 	return node, nil
 }
 
-func toShallowNode(node *Node) *Node {
-	return &Node{
+func toShallowNode(node *ResourceObj) *ResourceObj {
+	return &ResourceObj{
 		ID:   node.ID,
 		Type: node.Type,
 	}
 }
 
-func visitModelNodeRelationships(models reflect.Value, included *map[string]*Node,
+func visitModelNodeRelationships(models reflect.Value, included *map[string]*ResourceObj,
 	sideload bool) (*RelationshipManyNode, error) {
-	nodes := []*Node{}
+	nodes := []*ResourceObj{}
 
 	for i := 0; i < models.Len(); i++ {
 		n := models.Index(i).Interface()
@@ -496,7 +484,7 @@ func visitModelNodeRelationships(models reflect.Value, included *map[string]*Nod
 	return &RelationshipManyNode{Data: nodes}, nil
 }
 
-func appendIncluded(m *map[string]*Node, nodes ...*Node) {
+func appendIncluded(m *map[string]*ResourceObj, nodes ...*ResourceObj) {
 	included := *m
 
 	for _, n := range nodes {
@@ -510,9 +498,9 @@ func appendIncluded(m *map[string]*Node, nodes ...*Node) {
 	}
 }
 
-func nodeMapValues(m *map[string]*Node) []*Node {
+func nodeMapValues(m *map[string]*ResourceObj) []*ResourceObj {
 	mp := *m
-	nodes := make([]*Node, len(mp))
+	nodes := make([]*ResourceObj, len(mp))
 
 	i := 0
 	for _, n := range mp {

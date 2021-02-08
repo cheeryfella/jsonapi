@@ -19,16 +19,16 @@ const (
 var (
 	// ErrInvalidTime is returned when a struct has a time.Time type field, but
 	// the JSON value was not a unix timestamp integer.
-	ErrInvalidTime = errors.New("Only numbers can be parsed as dates, unix timestamps")
+	ErrInvalidTime = errors.New("only numbers can be parsed as dates, unix timestamps")
 	// ErrInvalidISO8601 is returned when a struct has a time.Time type field and includes
 	// "iso8601" in the tag spec, but the JSON value was not an ISO8601 timestamp string.
-	ErrInvalidISO8601 = errors.New("Only strings can be parsed as dates, ISO8601 timestamps")
+	ErrInvalidISO8601 = errors.New("only strings can be parsed as dates, ISO8601 timestamps")
 	// ErrUnknownFieldNumberType is returned when the JSON value was a float
 	// (numeric) but the Struct field was a non numeric type (i.e. not int, uint,
 	// float, etc)
-	ErrUnknownFieldNumberType = errors.New("The struct field was not of a known number type")
+	ErrUnknownFieldNumberType = errors.New("the struct field was not of a known number type")
 	// ErrInvalidType is returned when the given type is incompatible with the expected type.
-	ErrInvalidType = errors.New("Invalid type provided") // I wish we used punctuation.
+	ErrInvalidType = errors.New("invalid type provided") // I wish we used punctuation.
 
 )
 
@@ -97,7 +97,7 @@ func UnmarshalPayload(in io.Reader, model interface{}) error {
 	}
 
 	if payload.Included != nil {
-		includedMap := make(map[string]*Node)
+		includedMap := make(map[string]*ResourceObj)
 		for _, included := range payload.Included {
 			key := fmt.Sprintf("%s,%s", included.Type, included.ID)
 			includedMap[key] = included
@@ -117,8 +117,8 @@ func UnmarshalManyPayload(in io.Reader, t reflect.Type) ([]interface{}, error) {
 		return nil, err
 	}
 
-	models := []interface{}{}         // will be populated from the "data"
-	includedMap := map[string]*Node{} // will be populate from the "included"
+	models := []interface{}{}                // will be populated from the "data"
+	includedMap := map[string]*ResourceObj{} // will be populate from the "included"
 
 	if payload.Included != nil {
 		for _, included := range payload.Included {
@@ -139,7 +139,7 @@ func UnmarshalManyPayload(in io.Reader, t reflect.Type) ([]interface{}, error) {
 	return models, nil
 }
 
-func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) (err error) {
+func unmarshalNode(data *ResourceObj, model reflect.Value, included *map[string]*ResourceObj) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("data is not a jsonapi representation of '%v'", model.Type())
@@ -161,18 +161,12 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 		fieldValue := modelValue.Field(i)
 
 		args := strings.Split(tag, ",")
-		if len(args) < 1 {
+		if len(args) < 2 {
 			er = ErrBadJSONAPIStructTag
 			break
 		}
 
 		annotation := args[0]
-
-		if (annotation == annotationClientID && len(args) != 1) ||
-			(annotation != annotationClientID && len(args) < 2) {
-			er = ErrBadJSONAPIStructTag
-			break
-		}
 
 		switch {
 		case annotation == annotationPrimary:
@@ -227,12 +221,6 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 			}
 
 			assign(fieldValue, idValue)
-		case annotation == annotationClientID:
-			if data.ClientID == "" {
-				continue
-			}
-
-			fieldValue.Set(reflect.ValueOf(data.ClientID))
 		case annotation == annotationAttribute:
 			attributes := data.Attributes
 
@@ -256,11 +244,11 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 
 			assign(fieldValue, value)
 		case annotation == annotationRelation:
-			isSlice := fieldValue.Type().Kind() == reflect.Slice
-
 			if data.Relationships == nil || data.Relationships[args[1]] == nil {
 				continue
 			}
+
+			isSlice := fieldValue.Type().Kind() == reflect.Slice
 
 			if isSlice {
 				// to-many relationship
@@ -332,7 +320,7 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 	return er
 }
 
-func fullNode(n *Node, included *map[string]*Node) *Node {
+func fullNode(n *ResourceObj, included *map[string]*ResourceObj) *ResourceObj {
 	includedKey := fmt.Sprintf("%s,%s", n.Type, n.ID)
 
 	if included != nil && (*included)[includedKey] != nil {
@@ -352,7 +340,6 @@ func assign(field, value reflect.Value) {
 		// can be set by assignValue
 		field.Set(reflect.New(field.Type().Elem()))
 		field = field.Elem()
-
 	}
 
 	assignValue(field, value)
@@ -379,117 +366,110 @@ func assignValue(field, value reflect.Value) {
 	}
 }
 
+// unmarshalAttribute will unmarshall each attribute field.
 func unmarshalAttribute(
 	attribute interface{},
 	args []string,
 	structField reflect.StructField,
 	fieldValue reflect.Value) (value reflect.Value, err error) {
+
 	value = reflect.ValueOf(attribute)
 	fieldType := structField.Type
 
-	// Handle field of type []string
-	if fieldValue.Type() == reflect.TypeOf([]string{}) {
-		value, err = handleStringSlice(attribute)
-		return
-	}
-
-	// Handle field of type time.Time
-	if fieldValue.Type() == reflect.TypeOf(time.Time{}) ||
-		fieldValue.Type() == reflect.TypeOf(new(time.Time)) {
-		value, err = handleTime(attribute, args, fieldValue)
-		return
-	}
-
-	// Handle field of type struct
-	if fieldValue.Type().Kind() == reflect.Struct {
-		value, err = handleStruct(attribute, fieldValue)
-		return
-	}
-
-	// Handle field containing slice of structs
-	if fieldValue.Type().Kind() == reflect.Slice &&
-		reflect.TypeOf(fieldValue.Interface()).Elem().Kind() == reflect.Struct {
-		value, err = handleStructSlice(attribute, fieldValue)
-		return
-	}
-
-	// JSON value was a float (numeric)
-	//if value.Kind() == reflect.Float64 {
-	if isFieldNumeric(value.Kind(), fieldValue.Type().Kind()) {
-		value, err = handleNumeric(attribute, fieldType, fieldValue)
-		return
-	}
-
-	// Field was a Pointer type
-	if fieldValue.Kind() == reflect.Ptr {
-		value, err = handlePointer(attribute, args, fieldType, fieldValue, structField)
-		return
-	}
-
-	// As a final catch-all, ensure types line up to avoid a runtime panic.
-	if fieldValue.Kind() != value.Kind() {
-		err = ErrInvalidType
-		return
+	value, err = handleField(attribute, args, fieldType, fieldValue)
+	switch{
+	case err == ErrInvalidType:
+		return reflect.Value{}, ErrInvalidType
+	case err == ErrInvalidISO8601:
+		return reflect.Value{}, ErrInvalidISO8601
+	case err != nil:
+		return reflect.Value{},
+		newErrUnsupportedPtrType(reflect.ValueOf(attribute), fieldType, structField)
 	}
 
 	return
 }
 
-func handleStringSlice(attribute interface{}) (reflect.Value, error) {
-	v := reflect.ValueOf(attribute)
-	values := make([]string, v.Len())
-	for i := 0; i < v.Len(); i++ {
-		values[i] = v.Index(i).Interface().(string)
+// handleField parses each individual field given its type and value. The method allows for recursion when unmarshalling
+// so we can traverse to primitive types.
+func handleField(
+	attribute interface{},
+	args []string,
+	fieldType reflect.Type,
+	fieldValue reflect.Value) (value reflect.Value, err error) {
+
+	value = reflect.ValueOf(attribute)
+	switch fieldType.Kind() {
+	case reflect.Bool:
+		val, err := handleBool(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Int:
+		val, err := handleInt(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Int8:
+		val, err := handleInt8(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Int16:
+		val, err := handleInt16(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Int32:
+		val, err := handleInt32(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Int64:
+		val, err := handleInt64(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Uint:
+		val, err := handleUint(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Uint8:
+		val, err := handleUint8(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Uint16:
+		val, err := handleUint16(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Uint32:
+		val, err := handleUint32(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Uint64:
+		val, err := handleUint64(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Float32:
+		val, err := handleFloat32(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.Float64:
+		val, err := handleFloat64(attribute)
+		return reflect.ValueOf(val), err
+	case reflect.String:
+		val, err := handleString(attribute, fieldType, fieldValue)
+		return reflect.ValueOf(val), err
+	case reflect.Slice:
+		switch reflect.TypeOf(fieldValue.Interface()).Elem().Kind() {
+		case reflect.Struct:
+			return handleStructSlice(attribute, fieldValue)
+		default:
+			return handleSlice(attribute, args, fieldType, fieldValue)
+		}
+
+	case reflect.Ptr:
+		return handlePointer(attribute, args, fieldType, fieldValue)
+	case reflect.Struct:
+		if fieldType.ConvertibleTo(reflect.TypeOf(time.Time{})) {
+			return handleTime(attribute, args, fieldValue)
+		}
+		return handleStruct(attribute,fieldValue)
 	}
 
-	return reflect.ValueOf(values), nil
+	return
 }
 
-func handleTime(attribute interface{}, args []string, fieldValue reflect.Value) (reflect.Value, error) {
-	var isIso8601 bool
-	v := reflect.ValueOf(attribute)
-
-	if len(args) > 2 {
-		for _, arg := range args[2:] {
-			if arg == annotationISO8601 {
-				isIso8601 = true
-			}
-		}
+// handleBool
+func handleBool(
+	attribute interface{}) (bool, error) {
+	if val, ok := attribute.(bool); ok {
+		return val, nil
 	}
 
-	if isIso8601 {
-		var tm string
-		if v.Kind() == reflect.String {
-			tm = v.Interface().(string)
-		} else {
-			return reflect.ValueOf(time.Now()), ErrInvalidISO8601
-		}
-
-		t, err := time.Parse(iso8601TimeFormat, tm)
-		if err != nil {
-			return reflect.ValueOf(time.Now()), ErrInvalidISO8601
-		}
-
-		if fieldValue.Kind() == reflect.Ptr {
-			return reflect.ValueOf(&t), nil
-		}
-
-		return reflect.ValueOf(t), nil
-	}
-
-	var at int64
-
-	if v.Kind() == reflect.Float64 {
-		at = int64(v.Interface().(float64))
-	} else if v.Kind() == reflect.Int {
-		at = v.Int()
-	} else {
-		return reflect.ValueOf(time.Now()), ErrInvalidTime
-	}
-
-	t := time.Unix(at, 0)
-
-	return reflect.ValueOf(t), nil
+	return false, errors.New("invalid value to assign to boolean")
 }
 
 func handleNumeric(
@@ -552,41 +532,211 @@ func handleNumeric(
 	return numericValue, nil
 }
 
+// handleInt
+func handleInt(attribute interface{}) (int, error) {
+	v := reflect.ValueOf(attribute)
+
+	floatValue, ok := v.Interface().(float64)
+	if !ok {
+		return 0, ErrInvalidType
+	}
+	return int(floatValue), nil
+}
+
+// handleInt8
+func handleInt8(attribute interface{}) (int8, error) {
+	v := reflect.ValueOf(attribute)
+	floatValue := v.Interface().(float64)
+
+	return int8(floatValue), nil
+}
+
+// handleInt16
+func handleInt16(attribute interface{}) (int16, error) {
+	v := reflect.ValueOf(attribute)
+	floatValue := v.Interface().(float64)
+
+	return int16(floatValue), nil
+}
+
+// handleInt32
+func handleInt32(attribute interface{}) (int32, error) {
+	v := reflect.ValueOf(attribute)
+	floatValue := v.Interface().(float64)
+
+	return int32(floatValue), nil
+}
+
+// handleInt64
+func handleInt64(attribute interface{}) (int64, error) {
+	v := reflect.ValueOf(attribute)
+	floatValue := v.Interface().(float64)
+
+	return int64(floatValue), nil
+}
+
+// handleUint
+func handleUint(attribute interface{}) (uint, error) {
+	v := reflect.ValueOf(attribute)
+	floatValue := v.Interface().(float64)
+
+	return uint(floatValue), nil
+}
+
+// handleUint8
+func handleUint8(attribute interface{}) (uint8, error) {
+	v := reflect.ValueOf(attribute)
+	floatValue := v.Interface().(float64)
+
+	return uint8(floatValue), nil
+}
+
+// handleUint16
+func handleUint16(attribute interface{}) (uint16, error) {
+	v := reflect.ValueOf(attribute)
+	floatValue := v.Interface().(float64)
+
+	return uint16(floatValue), nil
+}
+
+// handleUint32
+func handleUint32(attribute interface{}) (uint32, error) {
+	v := reflect.ValueOf(attribute)
+	floatValue := v.Interface().(float64)
+
+	return uint32(floatValue), nil
+}
+
+// handleUint64
+func handleUint64(attribute interface{}) (uint64, error) {
+	v := reflect.ValueOf(attribute)
+	floatValue := v.Interface().(float64)
+
+	return uint64(floatValue), nil
+}
+
+// handleFloat32
+func handleFloat32(attribute interface{}) (float32, error) {
+	v := reflect.ValueOf(attribute)
+	floatValue := v.Interface().(float64)
+
+	return float32(floatValue), nil
+}
+
+// handleFloat64
+func handleFloat64(attribute interface{}) (float64, error) {
+	v := reflect.ValueOf(attribute)
+	floatValue := v.Interface().(float64)
+
+	return float64(floatValue), nil
+}
+
+// handleString
+func handleString(
+	attribute interface{},
+	fieldType reflect.Type,
+	fieldValue reflect.Value) (value string, err error) {
+	v := reflect.ValueOf(attribute)
+	if v.Kind() != reflect.String {
+
+		return value, errors.New(fmt.Sprintf("can't unmarshal value of type %s to string", v.Kind().String()) )
+	}
+	value = v.Interface().(string)
+
+	return
+}
+
+// handleSlice
+func handleSlice(
+	attribute interface{},
+	args []string,
+	fieldType reflect.Type,
+	fieldValue reflect.Value) (value reflect.Value, err error) {
+
+	// check passed values is a struct
+	submittedValues, ok := attribute.([]interface{})
+	if !ok {
+		return reflect.Value{}, errors.New("require slice of values to unmarshall into slice")
+	}
+
+	// find type tp pass back to handle field - recursively filling the values
+	sliceType := fieldType.Elem()
+
+	vals := reflect.MakeSlice(reflect.SliceOf(sliceType), 0, len(submittedValues))
+
+	for _, val := range submittedValues {
+		v, tErr := handleField(val, args, sliceType, fieldValue)
+		if tErr != nil {
+			return reflect.Value{}, tErr
+		}
+
+		vals = reflect.Append(vals, v)
+	}
+
+	return vals, nil
+}
+
+// handlePointer
 func handlePointer(
 	attribute interface{},
 	args []string,
 	fieldType reflect.Type,
-	fieldValue reflect.Value,
-	structField reflect.StructField) (reflect.Value, error) {
-	t := fieldValue.Type()
-	var concreteVal reflect.Value
+	fieldValue reflect.Value) (value reflect.Value, err error) {
+	t := fieldType.Elem()
 
-	switch cVal := attribute.(type) {
-	case string:
-		concreteVal = reflect.ValueOf(&cVal)
-	case bool:
-		concreteVal = reflect.ValueOf(&cVal)
-	case complex64, complex128, uintptr:
-		concreteVal = reflect.ValueOf(&cVal)
-	case map[string]interface{}:
-		var err error
-		concreteVal, err = handleStruct(attribute, fieldValue)
-		if err != nil {
-			return reflect.Value{}, newErrUnsupportedPtrType(
-				reflect.ValueOf(attribute), fieldType, structField)
+	value, err = handleField(attribute, args, t, fieldValue)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+
+	return
+}
+
+func handleTime(attribute interface{}, args []string, fieldValue reflect.Value) (reflect.Value, error) {
+	var isIso8601 bool
+	v := reflect.ValueOf(attribute)
+
+	if len(args) > 2 {
+		for _, arg := range args[2:] {
+			if arg == annotationISO8601 {
+				isIso8601 = true
+			}
 		}
-		return concreteVal, err
-	default:
-		return reflect.Value{}, newErrUnsupportedPtrType(
-			reflect.ValueOf(attribute), fieldType, structField)
 	}
 
-	if t != concreteVal.Type() {
-		return reflect.Value{}, newErrUnsupportedPtrType(
-			reflect.ValueOf(attribute), fieldType, structField)
+	if isIso8601 {
+		var tm string
+		if v.Kind() == reflect.String {
+			tm = v.Interface().(string)
+		} else {
+			return reflect.ValueOf(time.Now()), ErrInvalidISO8601
+		}
+
+		t, err := time.Parse(iso8601TimeFormat, tm)
+		if err != nil {
+			return reflect.ValueOf(time.Now()), ErrInvalidISO8601
+		}
+
+		if fieldValue.Kind() == reflect.Ptr {
+			return reflect.ValueOf(&t), nil
+		}
+
+		return reflect.ValueOf(t), nil
 	}
 
-	return concreteVal, nil
+	var at int64
+
+	if v.Kind() == reflect.Float64 {
+		at = int64(v.Interface().(float64))
+	} else if v.Kind() == reflect.Int {
+		at = v.Int()
+	} else {
+		return reflect.ValueOf(time.Now()), ErrInvalidTime
+	}
+
+	t := time.Unix(at, 0)
+
+	return reflect.ValueOf(t), nil
 }
 
 func handleStruct(
@@ -598,7 +748,7 @@ func handleStruct(
 		return reflect.Value{}, err
 	}
 
-	node := new(Node)
+	node := new(ResourceObj)
 	if err := json.Unmarshal(data, &node.Attributes); err != nil {
 		return reflect.Value{}, err
 	}
@@ -637,18 +787,36 @@ func handleStructSlice(
 	return models, nil
 }
 
-func isFieldNumeric(value, kind reflect.Kind) bool {
-	switch value {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Float32, reflect.Float64:
-	default:
+func isCustomStruct(fieldValue reflect.Value) bool {
+	t := fieldValue.Type()
+	//el := t.Elem()
+
+	targetStruct := reflect.New(t).Interface()
+
+	target, err := json.Marshal(targetStruct)
+
+	var customStruct map[string]interface{}
+	err = json.Unmarshal(target, &customStruct)
+	if err != nil {
 		return false
 	}
 
-	switch kind {
-	case reflect.Int, reflect.Uint, reflect.Uintptr, reflect.Float32, reflect.Float64, reflect.Ptr:
-		return true
+	return true
+}
+
+// attribute interface{},
+//	fieldValue reflect.Value) (reflect.Value, error)
+func handleCustomStruct(attribute interface{}, fieldValue reflect.Value) (reflect.Value, error) {
+	data, err := json.Marshal(attribute)
+	if err != nil {
+		return reflect.Value{}, err
 	}
-	return false
+
+	t := fieldValue.Type()
+	customStruct := reflect.New(t).Interface()
+	customErr := json.Unmarshal(data, customStruct)
+	if customErr != nil {
+		return reflect.Value{}, err
+	}
+	return reflect.ValueOf(customStruct), nil
 }

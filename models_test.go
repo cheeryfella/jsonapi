@@ -52,7 +52,6 @@ type Post struct {
 	Blog
 	ID            uint64     `jsonapi:"primary,posts"`
 	BlogID        int        `jsonapi:"attr,blog_id"`
-	ClientID      string     `jsonapi:"client-id"`
 	Title         string     `jsonapi:"attr,title"`
 	Body          string     `jsonapi:"attr,body"`
 	Comments      []*Comment `jsonapi:"relation,comments"`
@@ -60,10 +59,9 @@ type Post struct {
 }
 
 type Comment struct {
-	ID       int    `jsonapi:"primary,comments"`
-	ClientID string `jsonapi:"client-id"`
-	PostID   int    `jsonapi:"attr,post_id"`
-	Body     string `jsonapi:"attr,body"`
+	ID     int    `jsonapi:"primary,comments"`
+	PostID int    `jsonapi:"attr,post_id"`
+	Body   string `jsonapi:"attr,body"`
 }
 
 type Book struct {
@@ -79,7 +77,6 @@ type Book struct {
 
 type Blog struct {
 	ID            int       `jsonapi:"primary,blogs"`
-	ClientID      string    `jsonapi:"client-id"`
 	Title         string    `jsonapi:"attr,title"`
 	Posts         []*Post   `jsonapi:"relation,posts"`
 	CurrentPost   *Post     `jsonapi:"relation,current_post"`
@@ -200,4 +197,25 @@ type CustomAttributeTypes struct {
 
 	Float  CustomFloatType  `jsonapi:"attr,float"`
 	String CustomStringType `jsonapi:"attr,string"`
+}
+
+type JSONAPITypes struct {
+	ID *string `jsonapi:"primary,jsontype"`
+
+	//Int int `jsonapi:"attr,int"`
+	//Int8 int8 `jsonapi:"attr,int8"`
+	//Int16 int16 `jsonapi:"attr,int16"`
+	//Int32 int32 `jsonapi:"attr,int32"`
+	//Int64 int64 `jsonapi:"attr,int64"`
+	//UInt uint `jsonapi:"attr,uint"`
+	//UInt8 uint8 `jsonapi:"attr,uint8"`
+	//UInt16 uint16 `jsonapi:"attr,uint16"`
+	//UInt32 uint32 `jsonapi:"attr,uint32"`
+	//UInt64 uint64 `jsonapi:"attr,uint64"`
+	//Float32 float32 `jsonapi:"attr,float32"`
+	//Float64 float64 `jsonapi:"attr,float64"`
+	String *string `jsonapi:"attr,string"`
+	//SS []string `jsonapi:"attr,ss"`
+	//SI []int `jsonapi:"attr,si"`
+	//b bool `jsonapi:"attr,b"`
 }
