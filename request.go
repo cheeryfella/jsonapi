@@ -382,6 +382,8 @@ func unmarshalAttribute(
 		return reflect.Value{}, ErrInvalidType
 	case err == ErrInvalidISO8601:
 		return reflect.Value{}, ErrInvalidISO8601
+	case err == ErrInvalidTime:
+		return reflect.Value{}, ErrInvalidTime
 	case err != nil:
 		return reflect.Value{},
 		newErrUnsupportedPtrType(reflect.ValueOf(attribute), fieldType, structField)
