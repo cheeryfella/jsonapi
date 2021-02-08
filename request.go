@@ -386,6 +386,7 @@ func unmarshalAttribute(
 		return reflect.Value{},
 		newErrUnsupportedPtrType(reflect.ValueOf(attribute), fieldType, structField)
 	}
+
 	return
 }
 
