@@ -2,10 +2,12 @@ package jsonapi
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -142,7 +144,7 @@ func UnmarshalManyPayload(in io.Reader, t reflect.Type) ([]interface{}, error) {
 func unmarshalNode(data *ResourceObj, model reflect.Value, included *map[string]*ResourceObj) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("data is not a jsonapi representation of '%v'", model.Type())
+			err = fmt.Errorf("data is not a jsonapi representation of '%v'\n\n%v", model.Type(), r)
 		}
 	}()
 
@@ -361,6 +363,18 @@ func assignValue(field, value reflect.Value) {
 		field.SetString(value.String())
 	case reflect.Bool:
 		field.SetBool(value.Bool())
+	//case reflect.Struct:
+	//	input := reflect.Indirect(value)
+	//
+	//	numField := field.NumField()
+	//	for i := 0; i < numField; i++ {
+	//		f := field.Type().Field(i)
+	//		fmt.Printf("Fieldname: %v\n", f.Name)
+	//		_, ok := input.Type().FieldByName(f.Name)
+	//		if ok {
+	//			field.Field(i).Set(input.FieldByName(f.Name))
+	//		}
+	//	}
 	default:
 		field.Set(value)
 	}
@@ -373,18 +387,18 @@ func unmarshalAttribute(
 	structField reflect.StructField,
 	fieldValue reflect.Value) (value reflect.Value, err error) {
 
-	value = reflect.ValueOf(attribute)
+	//value = reflect.ValueOf(attribute)
 	fieldType := structField.Type
 
 	value, err = handleField(attribute, args, fieldType, fieldValue)
-	switch{
+	switch {
 	case err == ErrInvalidType:
 		return reflect.Value{}, ErrInvalidType
 	case err == ErrInvalidISO8601:
 		return reflect.Value{}, ErrInvalidISO8601
 	case err != nil:
 		return reflect.Value{},
-		newErrUnsupportedPtrType(reflect.ValueOf(attribute), fieldType, structField)
+			newErrUnsupportedPtrType(reflect.ValueOf(attribute), fieldType, structField)
 	}
 
 	return
@@ -449,14 +463,13 @@ func handleField(
 		default:
 			return handleSlice(attribute, args, fieldType, fieldValue)
 		}
-
 	case reflect.Ptr:
 		return handlePointer(attribute, args, fieldType, fieldValue)
 	case reflect.Struct:
 		if fieldType.ConvertibleTo(reflect.TypeOf(time.Time{})) {
 			return handleTime(attribute, args, fieldValue)
 		}
-		return handleStruct(attribute,fieldValue)
+		return handleStruct(attribute, fieldValue)
 	}
 
 	return
@@ -639,7 +652,7 @@ func handleString(
 	v := reflect.ValueOf(attribute)
 	if v.Kind() != reflect.String {
 
-		return value, errors.New(fmt.Sprintf("can't unmarshal value of type %s to string", v.Kind().String()) )
+		return value, errors.New(fmt.Sprintf("can't unmarshal value of type %s to string", v.Kind().String()))
 	}
 	value = v.Interface().(string)
 
@@ -747,6 +760,25 @@ func handleStruct(
 	if err != nil {
 		return reflect.Value{}, err
 	}
+	// handle custom structs which need UnmarshalJSON to work.
+	init := reflect.New(fieldValue.Type())
+	m := init.MethodByName("UnmarshalJSON")
+	if m.IsValid() {
+		args := make([]reflect.Value, 1)
+		var buf []byte
+		if val, ok := attribute.(string); ok {
+			buf = []byte(`"` + val + `"`)
+		}
+		if val, ok := attribute.(float64); ok {
+			fmt.Printf("Attribute: %#v\nValue: %#v\n", attribute, val)
+			binary.BigEndian.PutUint64(buf[:], math.Float64bits(val))
+		}
+		args[0] = reflect.ValueOf(buf)
+		res := m.Call(args)
+		fmt.Printf("Results: %#v\n%v\n", init, res)
+
+		return init, nil
+	}
 
 	node := new(ResourceObj)
 	if err := json.Unmarshal(data, &node.Attributes); err != nil {
@@ -785,38 +817,4 @@ func handleStructSlice(
 	}
 
 	return models, nil
-}
-
-func isCustomStruct(fieldValue reflect.Value) bool {
-	t := fieldValue.Type()
-	//el := t.Elem()
-
-	targetStruct := reflect.New(t).Interface()
-
-	target, err := json.Marshal(targetStruct)
-
-	var customStruct map[string]interface{}
-	err = json.Unmarshal(target, &customStruct)
-	if err != nil {
-		return false
-	}
-
-	return true
-}
-
-// attribute interface{},
-//	fieldValue reflect.Value) (reflect.Value, error)
-func handleCustomStruct(attribute interface{}, fieldValue reflect.Value) (reflect.Value, error) {
-	data, err := json.Marshal(attribute)
-	if err != nil {
-		return reflect.Value{}, err
-	}
-
-	t := fieldValue.Type()
-	customStruct := reflect.New(t).Interface()
-	customErr := json.Unmarshal(data, customStruct)
-	if customErr != nil {
-		return reflect.Value{}, err
-	}
-	return reflect.ValueOf(customStruct), nil
 }

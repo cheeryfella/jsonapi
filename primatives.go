@@ -2,6 +2,7 @@ package jsonapi
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // Intger
@@ -191,6 +192,38 @@ func (i *JSONUInt64) UnmarshalJSON(data []byte) error {
 	// The key isn't set to null
 	var temp uint64
 	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+	i.Value = temp
+	return nil
+}
+
+// JSONString a struct to aide representation of string in json
+type JSONString struct {
+	Null  bool
+	Set   bool
+	Value string
+}
+
+// UnmarshalJSON unmarshalls an integer jsonfield into a JSONInt
+func (i *JSONString) UnmarshalJSON(data []byte) error {
+	// If this method was called, the value was set.
+	i.Set = true
+
+	if string(data) == "null" {
+		// The key was set to null
+		i.Null = true
+		return nil
+	}
+
+	// The key isn't set to null
+	var temp string
+	if err := json.Unmarshal(data, &temp); err != nil {
+		fmt.Printf("error decoding sakura response: %v", err)
+		if e, ok := err.(*json.SyntaxError); ok {
+			fmt.Printf("syntax error at byte offset %d", e.Offset)
+		}
+		fmt.Printf("sakura response: %q", data)
 		return err
 	}
 	i.Value = temp
