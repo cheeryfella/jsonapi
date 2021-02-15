@@ -1359,8 +1359,8 @@ func TestJSONTypes(t *testing.T) {
 			"type": "jsontype",
 			"id":   "sad",
 			"attributes": {
-				"int": 4,
-				"string": "Astr"
+				"int": 1,
+				"str": "string1"
 			}
 		}
 	}
@@ -1372,5 +1372,8 @@ func TestJSONTypes(t *testing.T) {
 	if err := jsonapi.UnmarshalPayload(in, out); err != nil {
 		t.Fatal(err)
 	}
+
 	fmt.Printf("Product: %#v\n", out)
+	fmt.Printf("int2: %#v\n", out.Int2)
+	fmt.Printf("str2: %#v\n", out.Str2)
 }

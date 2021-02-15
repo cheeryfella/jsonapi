@@ -19,7 +19,7 @@ func (i *JSONInt) UnmarshalJSON(data []byte) error {
 	// If this method was called, the value was set.
 	i.Set = true
 
-	if string(data) == "null" {
+	if data == nil {
 		// The key was set to null
 		i.Null = true
 		return nil
@@ -46,7 +46,7 @@ func (i *JSONInt8) UnmarshalJSON(data []byte) error {
 	// If this method was called, the value was set.
 	i.Set = true
 
-	if string(data) == "null" {
+	if data == nil {
 		// The key was set to null
 		i.Null = true
 		return nil
@@ -73,7 +73,7 @@ func (i *JSONInt32) UnmarshalJSON(data []byte) error {
 	// If this method was called, the value was set.
 	i.Set = true
 
-	if string(data) == "null" {
+	if data == nil {
 		// The key was set to null
 		i.Null = true
 		return nil
@@ -100,7 +100,7 @@ func (i *JSONInt64) UnmarshalJSON(data []byte) error {
 	// If this method was called, the value was set.
 	i.Set = true
 
-	if string(data) == "null" {
+	if data == nil {
 		// The key was set to null
 		i.Null = true
 		return nil
@@ -129,7 +129,7 @@ func (i *JSONUInt) UnmarshalJSON(data []byte) error {
 	// If this method was called, the value was set.
 	i.Set = true
 
-	if string(data) == "null" {
+	if data == nil {
 		// The key was set to null
 		i.Null = true
 		return nil
@@ -156,7 +156,7 @@ func (i *JSONUInt32) UnmarshalJSON(data []byte) error {
 	// If this method was called, the value was set.
 	i.Set = true
 
-	if string(data) == "null" {
+	if data == nil {
 		// The key was set to null
 		i.Null = true
 		return nil
@@ -183,7 +183,7 @@ func (i *JSONUInt64) UnmarshalJSON(data []byte) error {
 	// If this method was called, the value was set.
 	i.Set = true
 
-	if string(data) == "null" {
+	if data == nil {
 		// The key was set to null
 		i.Null = true
 		return nil
@@ -210,7 +210,7 @@ func (i *JSONString) UnmarshalJSON(data []byte) error {
 	// If this method was called, the value was set.
 	i.Set = true
 
-	if string(data) == "null" {
+	if data == nil {
 		// The key was set to null
 		i.Null = true
 		return nil
