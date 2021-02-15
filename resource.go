@@ -1,10 +1,18 @@
 package jsonapi
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // Payloader is used to encapsulate the One and Many payload types
 type Payloader interface {
 	clearIncluded()
+}
+
+// NulledPayload allows for raw message to inspect nulls
+type NulledPayload struct {
+	Data ResourceObjNulls `json:"data"`
 }
 
 // OnePayload is used to represent a generic JSON API payload where a single
@@ -31,6 +39,13 @@ type ManyPayload struct {
 
 func (p *ManyPayload) clearIncluded() {
 	p.Included = []*ResourceObj{}
+}
+
+// ResourceObjNulls is used to represent a generic JSON API Resource with null fields
+type ResourceObjNulls struct {
+	Type       string          `json:"type"`
+	ID         string          `json:"id,omitempty"`
+	Attributes map[string]json.RawMessage `json:"attributes,omitempty"`
 }
 
 // ResourceObj is used to represent a generic JSON API Resource

@@ -202,7 +202,8 @@ type CustomAttributeTypes struct {
 type JSONAPITypes struct {
 	ID *string `jsonapi:"primary,jsontype"`
 
-	//Int int `jsonapi:"attr,int"`
+	Int  jsonapi.JSONInt  `jsonapi:"attr,int"`
+	Int2 *jsonapi.JSONInt `jsonapi:"attr,int2"`
 	//Int8 int8 `jsonapi:"attr,int8"`
 	//Int16 int16 `jsonapi:"attr,int16"`
 	//Int32 int32 `jsonapi:"attr,int32"`
@@ -214,7 +215,8 @@ type JSONAPITypes struct {
 	//UInt64 uint64 `jsonapi:"attr,uint64"`
 	//Float32 float32 `jsonapi:"attr,float32"`
 	//Float64 float64 `jsonapi:"attr,float64"`
-	String *string `jsonapi:"attr,string"`
+	Str  jsonapi.JSONString  `jsonapi:"attr,str"`
+	Str2 *jsonapi.JSONString `jsonapi:"attr,str2"`
 	//SS []string `jsonapi:"attr,ss"`
 	//SI []int `jsonapi:"attr,si"`
 	//b bool `jsonapi:"attr,b"`

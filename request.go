@@ -91,9 +91,15 @@ func newErrUnsupportedPtrType(rf reflect.Value, t reflect.Type, structField refl
 // model interface{} should be a pointer to a struct.
 func UnmarshalPayload(in io.Reader, model interface{}) error {
 	payload := new(OnePayload)
-
-	if err := json.NewDecoder(in).Decode(payload); err != nil {
+	var duplicate bytes.Buffer
+	tee := io.TeeReader(in, &duplicate)
+	if err := json.NewDecoder(tee).Decode(payload); err != nil {
 		return err
+	}
+
+	nulls := make(map[string]interface{})
+	if err := unmarshalShadow(duplicate, nulls); err != nil {
+
 	}
 
 	if payload.Included != nil {
@@ -103,9 +109,9 @@ func UnmarshalPayload(in io.Reader, model interface{}) error {
 			includedMap[key] = included
 		}
 
-		return unmarshalNode(payload.Data, reflect.ValueOf(model), &includedMap)
+		return unmarshalNode(payload.Data, nulls, reflect.ValueOf(model), &includedMap)
 	}
-	return unmarshalNode(payload.Data, reflect.ValueOf(model), nil)
+	return unmarshalNode(payload.Data, nulls, reflect.ValueOf(model), nil)
 }
 
 // UnmarshalManyPayload converts an io into a set of struct instances using
@@ -129,7 +135,9 @@ func UnmarshalManyPayload(in io.Reader, t reflect.Type) ([]interface{}, error) {
 
 	for _, data := range payload.Data {
 		model := reflect.New(t.Elem())
-		err := unmarshalNode(data, model, &includedMap)
+		nulls := make(map[string]interface{})
+
+		err := unmarshalNode(data, nulls, model, &includedMap)
 		if err != nil {
 			return nil, err
 		}
@@ -139,10 +147,24 @@ func UnmarshalManyPayload(in io.Reader, t reflect.Type) ([]interface{}, error) {
 	return models, nil
 }
 
-func unmarshalNode(data *ResourceObj, model reflect.Value, included *map[string]*ResourceObj) (err error) {
+func unmarshalShadow(payload bytes.Buffer, data map[string]interface{}) (err error) {
+	v := new(NulledPayload)
+	if err := json.Unmarshal(payload.Bytes(), v); err != nil {
+		return err
+	}
+	for i := range v.Data.Attributes {
+		message := v.Data.Attributes[i]
+		if string(message) == "null" {
+			data[i] = v.Data.Attributes[i]
+		}
+	}
+	return nil
+}
+
+func unmarshalNode(data *ResourceObj, nulls map[string]interface{}, model reflect.Value, included *map[string]*ResourceObj) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("data is not a jsonapi representation of '%v'", model.Type())
+			err = fmt.Errorf("data is not a jsonapi representation of '%v'\n\n%v", model.Type(), r)
 		}
 	}()
 
@@ -232,7 +254,11 @@ func unmarshalNode(data *ResourceObj, model reflect.Value, included *map[string]
 
 			// continue if the attribute was not included in the request
 			if attribute == nil {
-				continue
+				val, ok := nulls[args[1]]
+				if !ok {
+					continue
+				}
+				attribute = val
 			}
 
 			structField := fieldType
@@ -264,9 +290,10 @@ func unmarshalNode(data *ResourceObj, model reflect.Value, included *map[string]
 
 				for _, n := range data {
 					m := reflect.New(fieldValue.Type().Elem().Elem())
-
+					nulls := make(map[string]interface{})
 					if err := unmarshalNode(
 						fullNode(n, included),
+						nulls,
 						m,
 						included,
 					); err != nil {
@@ -300,8 +327,11 @@ func unmarshalNode(data *ResourceObj, model reflect.Value, included *map[string]
 				}
 
 				m := reflect.New(fieldValue.Type().Elem())
+				nulls := make(map[string]interface{})
+
 				if err := unmarshalNode(
 					fullNode(relationship.Data, included),
+					nulls,
 					m,
 					included,
 				); err != nil {
@@ -373,20 +403,18 @@ func unmarshalAttribute(
 	structField reflect.StructField,
 	fieldValue reflect.Value) (value reflect.Value, err error) {
 
-	value = reflect.ValueOf(attribute)
+	//value = reflect.ValueOf(attribute)
 	fieldType := structField.Type
 
 	value, err = handleField(attribute, args, fieldType, fieldValue)
-	switch{
+	switch {
 	case err == ErrInvalidType:
 		return reflect.Value{}, ErrInvalidType
 	case err == ErrInvalidISO8601:
 		return reflect.Value{}, ErrInvalidISO8601
-	case err == ErrInvalidTime:
-		return reflect.Value{}, ErrInvalidTime
 	case err != nil:
 		return reflect.Value{},
-		newErrUnsupportedPtrType(reflect.ValueOf(attribute), fieldType, structField)
+			newErrUnsupportedPtrType(reflect.ValueOf(attribute), fieldType, structField)
 	}
 
 	return
@@ -451,14 +479,13 @@ func handleField(
 		default:
 			return handleSlice(attribute, args, fieldType, fieldValue)
 		}
-
 	case reflect.Ptr:
 		return handlePointer(attribute, args, fieldType, fieldValue)
 	case reflect.Struct:
 		if fieldType.ConvertibleTo(reflect.TypeOf(time.Time{})) {
 			return handleTime(attribute, args, fieldValue)
 		}
-		return handleStruct(attribute,fieldValue)
+		return handleStruct(attribute, fieldValue)
 	}
 
 	return
@@ -641,7 +668,7 @@ func handleString(
 	v := reflect.ValueOf(attribute)
 	if v.Kind() != reflect.String {
 
-		return value, errors.New(fmt.Sprintf("can't unmarshal value of type %s to string", v.Kind().String()) )
+		return value, errors.New(fmt.Sprintf("can't unmarshal value of type %s to string", v.Kind().String()))
 	}
 	value = v.Interface().(string)
 
@@ -750,19 +777,35 @@ func handleStruct(
 		return reflect.Value{}, err
 	}
 
-	node := new(ResourceObj)
-	if err := json.Unmarshal(data, &node.Attributes); err != nil {
-		return reflect.Value{}, err
-	}
-
 	var model reflect.Value
 	if fieldValue.Kind() == reflect.Ptr {
 		model = reflect.New(fieldValue.Type().Elem())
 	} else {
 		model = reflect.New(fieldValue.Type())
 	}
+	// handle custom structs which need UnmarshalJSON to work.
+	method := model.MethodByName("UnmarshalJSON")
+	if method.IsValid() {
+		var buf []byte
+		if val, ok := attribute.(string); ok {
+			buf = []byte(`"` + val + `"`)
+		}
+		if val, ok := attribute.(float64); ok {
+			buf = []byte(strconv.FormatFloat(val, 'f', -1, 64))
+		}
+		in := []reflect.Value{reflect.ValueOf(buf)}
+		_ = method.Call(in)
 
-	if err := unmarshalNode(node, model, nil); err != nil {
+		return model, nil
+	}
+
+	node := new(ResourceObj)
+	if err := json.Unmarshal(data, &node.Attributes); err != nil {
+		return reflect.Value{}, err
+	}
+
+	nulls := make(map[string]interface{})
+	if err := unmarshalNode(node, nulls, model, nil); err != nil {
 		return reflect.Value{}, err
 	}
 
@@ -787,38 +830,4 @@ func handleStructSlice(
 	}
 
 	return models, nil
-}
-
-func isCustomStruct(fieldValue reflect.Value) bool {
-	t := fieldValue.Type()
-	//el := t.Elem()
-
-	targetStruct := reflect.New(t).Interface()
-
-	target, err := json.Marshal(targetStruct)
-
-	var customStruct map[string]interface{}
-	err = json.Unmarshal(target, &customStruct)
-	if err != nil {
-		return false
-	}
-
-	return true
-}
-
-// attribute interface{},
-//	fieldValue reflect.Value) (reflect.Value, error)
-func handleCustomStruct(attribute interface{}, fieldValue reflect.Value) (reflect.Value, error) {
-	data, err := json.Marshal(attribute)
-	if err != nil {
-		return reflect.Value{}, err
-	}
-
-	t := fieldValue.Type()
-	customStruct := reflect.New(t).Interface()
-	customErr := json.Unmarshal(data, customStruct)
-	if customErr != nil {
-		return reflect.Value{}, err
-	}
-	return reflect.ValueOf(customStruct), nil
 }
