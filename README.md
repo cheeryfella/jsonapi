@@ -13,7 +13,7 @@ A serializer/deserializer for JSON payloads that comply to the
 ## Installation
 
 ```
-go get -u github.com/google/jsonapi
+go get -u github.com/cheeryfella/jsonapi
 ```
 
 Or, see [Alternative Installation](#alternative-installation).
@@ -77,7 +77,7 @@ all of your data easily.
 
 ## Example App
 
-[examples/app.go](https://github.com/google/jsonapi/blob/master/examples/app.go)
+[examples/app.go](https://github.com/cheeryfella/jsonapi/blob/master/examples/app.go)
 
 This program demonstrates the implementation of a create, a show,
 and a list [http.Handler](http://golang.org/pkg/net/http#Handler).  It
@@ -91,9 +91,9 @@ To run,
 * Make sure you have [Go installed](https://golang.org/doc/install)
 * Create the following directories or similar: `~/go`
 * Set `GOPATH` to `PWD` in your shell session, `export GOPATH=$PWD`
-* `go get github.com/google/jsonapi`.  (Append `-u` after `get` if you
+* `go get github.com/cheeryfella/jsonapi`.  (Append `-u` after `get` if you
   are updating.)
-* `cd $GOPATH/src/github.com/google/jsonapi/examples`
+* `cd $GOPATH/src/github.com/cheeryfella/jsonapi/examples`
 * `go build && ./examples`
 
 ## `jsonapi` Tag Reference
@@ -190,7 +190,7 @@ about the rest?
 ### Create Record Example
 
 You can Unmarshal a JSON API payload using
-[jsonapi.UnmarshalPayload](http://godoc.org/github.com/google/jsonapi#UnmarshalPayload).
+[jsonapi.UnmarshalPayload](http://godoc.org/github.com/cheeryfella/jsonapi#UnmarshalPayload).
 It reads from an [io.Reader](https://golang.org/pkg/io/#Reader)
 containing a JSON API payload for one record (but can have related
 records).  Then, it materializes a struct that you created and passed in
@@ -199,7 +199,7 @@ the top level, in request payloads at the moment. Bulk creates and
 updates are not supported yet.
 
 After saving your record, you can use,
-[MarshalOnePayload](http://godoc.org/github.com/google/jsonapi#MarshalOnePayload),
+[MarshalOnePayload](http://godoc.org/github.com/cheeryfella/jsonapi#MarshalOnePayload),
 to write the JSON API response to an
 [io.Writer](https://golang.org/pkg/io/#Writer).
 
@@ -209,7 +209,7 @@ to write the JSON API response to an
 UnmarshalPayload(in io.Reader, model interface{})
 ```
 
-Visit [godoc](http://godoc.org/github.com/google/jsonapi#UnmarshalPayload)
+Visit [godoc](http://godoc.org/github.com/cheeryfella/jsonapi#UnmarshalPayload)
 
 #### `MarshalPayload`
 
@@ -217,7 +217,7 @@ Visit [godoc](http://godoc.org/github.com/google/jsonapi#UnmarshalPayload)
 MarshalPayload(w io.Writer, models interface{}) error
 ```
 
-Visit [godoc](http://godoc.org/github.com/google/jsonapi#MarshalPayload)
+Visit [godoc](http://godoc.org/github.com/cheeryfella/jsonapi#MarshalPayload)
 
 Writes a JSON API response, with related records sideloaded, into an
 `included` array.  This method encodes a response for either a single record or
@@ -253,7 +253,7 @@ func CreateBlog(w http.ResponseWriter, r *http.Request) {
 UnmarshalManyPayload(in io.Reader, t reflect.Type) ([]interface{}, error)
 ```
 
-Visit [godoc](http://godoc.org/github.com/google/jsonapi#UnmarshalManyPayload)
+Visit [godoc](http://godoc.org/github.com/cheeryfella/jsonapi#UnmarshalManyPayload)
 
 Takes an `io.Reader` and a `reflect.Type` representing the uniform type
 contained within the `"data"` JSON API member.
@@ -419,7 +419,7 @@ if err := validate(&myStructToValidate); err != nil {
 MarshalOnePayloadEmbedded(w io.Writer, model interface{}) error
 ```
 
-Visit [godoc](http://godoc.org/github.com/google/jsonapi#MarshalOnePayloadEmbedded)
+Visit [godoc](http://godoc.org/github.com/cheeryfella/jsonapi#MarshalOnePayloadEmbedded)
 
 This method is not strictly meant to for use in implementation code,
 although feel free.  It was mainly created for use in tests; in most cases,
@@ -459,13 +459,13 @@ I use git subtrees to manage dependencies rather than `go get` so that
 the src is committed to my repo.
 
 ```
-git subtree add --squash --prefix=src/github.com/google/jsonapi https://github.com/google/jsonapi.git master
+git subtree add --squash --prefix=src/github.com/cheeryfella/jsonapi https://github.com/cheeryfella/jsonapi.git master
 ```
 
 To update,
 
 ```
-git subtree pull --squash --prefix=src/github.com/google/jsonapi https://github.com/google/jsonapi.git master
+git subtree pull --squash --prefix=src/github.com/cheeryfella/jsonapi https://github.com/cheeryfella/jsonapi.git master
 ```
 
 This assumes that I have my repo structured with a `src` dir containing

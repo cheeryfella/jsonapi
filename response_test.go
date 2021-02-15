@@ -329,7 +329,7 @@ func TestMarshalOnePayload_omitIDString(t *testing.T) {
 	payload := jsonData["data"].(map[string]interface{})
 
 	// Verify that empty ID of type string gets omitted. See:
-	// https://github.com/google/jsonapi/issues/83#issuecomment-285611425
+	// https://github.com/cheeryfella/jsonapi/issues/83#issuecomment-285611425
 	_, ok := payload["id"]
 	if ok {
 		t.Fatal("Was expecting the data.id member to be omitted")
