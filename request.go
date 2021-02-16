@@ -258,6 +258,17 @@ func unmarshalNode(data *ResourceObj, nulls map[string]interface{}, model reflec
 				if !ok {
 					continue
 				}
+				var model reflect.Value
+				if fieldValue.Kind() == reflect.Ptr {
+					model = reflect.New(fieldValue.Type().Elem())
+				} else {
+					model = reflect.New(fieldValue.Type())
+				}
+				// handle custom structs which need UnmarshalJSON to work.
+				method := model.MethodByName("UnmarshalJSON")
+				if !method.IsValid() {
+					continue
+				}
 				attribute = val
 			}
 
