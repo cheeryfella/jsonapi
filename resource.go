@@ -43,8 +43,8 @@ func (p *ManyPayload) clearIncluded() {
 
 // ResourceObjNulls is used to represent a generic JSON API Resource with null fields
 type ResourceObjNulls struct {
-	Type       string          `json:"type"`
-	ID         string          `json:"id,omitempty"`
+	Type       string                     `json:"type"`
+	ID         string                     `json:"id,omitempty"`
 	Attributes map[string]json.RawMessage `json:"attributes,omitempty"`
 }
 

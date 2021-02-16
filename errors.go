@@ -59,7 +59,7 @@ func (e *ErrorObject) Error() string {
 
 // ErrorSource is an object used to identify the source of the error.
 type ErrorSource struct {
-	Pointer string `json:"pointer,omitempty"`
+	Pointer   string `json:"pointer,omitempty"`
 	Parameter string `json:"parameter,omitempty"`
 }
 

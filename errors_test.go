@@ -23,30 +23,30 @@ func TestErrorObjectWritesExpectedErrorMessage(t *testing.T) {
 
 func TestMarshalErrorsWritesTheExpectedPayload(t *testing.T) {
 	var marshalErrorsTableTasts = map[string]struct {
-		In    []*jsonapi.ErrorObject
-		Out   map[string]interface{}
+		In  []*jsonapi.ErrorObject
+		Out map[string]interface{}
 	}{
 		"TestFieldsAreSerializedAsNeeded": {
-			In:    []*jsonapi.ErrorObject{{
-				ID: "0",
-				Title: "Test title.",
+			In: []*jsonapi.ErrorObject{{
+				ID:     "0",
+				Title:  "Test title.",
 				Detail: "Test detail",
 				Status: "400",
-				Code: "E1100",
+				Code:   "E1100",
 			}},
 			Out: map[string]interface{}{
 				"errors": []interface{}{map[string]interface{}{
-					"id": "0",
-					"title": "Test title.",
+					"id":     "0",
+					"title":  "Test title.",
 					"detail": "Test detail",
 					"status": "400",
-					"code": "E1100",
+					"code":   "E1100",
 				}},
 			},
 		},
 		"TestMetaFieldIsSerializedProperly": {
-			In:    []*jsonapi.ErrorObject{{
-				Title: "Test title.",
+			In: []*jsonapi.ErrorObject{{
+				Title:  "Test title.",
 				Detail: "Test detail",
 				Meta: &map[string]interface{}{
 					"key": "val",
@@ -54,7 +54,7 @@ func TestMarshalErrorsWritesTheExpectedPayload(t *testing.T) {
 			}},
 			Out: map[string]interface{}{
 				"errors": []interface{}{map[string]interface{}{
-					"title": "Test title.",
+					"title":  "Test title.",
 					"detail": "Test detail",
 					"meta": map[string]interface{}{
 						"key": "val",
@@ -63,8 +63,8 @@ func TestMarshalErrorsWritesTheExpectedPayload(t *testing.T) {
 			},
 		},
 		"TestSourceFieldIsSerializedProperly": {
-			In:    []*jsonapi.ErrorObject{{
-				Title: "Test title.",
+			In: []*jsonapi.ErrorObject{{
+				Title:  "Test title.",
 				Detail: "Test detail",
 				Source: &jsonapi.ErrorSource{
 					Pointer:   "/data/attributes/field",
@@ -73,18 +73,18 @@ func TestMarshalErrorsWritesTheExpectedPayload(t *testing.T) {
 			}},
 			Out: map[string]interface{}{
 				"errors": []interface{}{map[string]interface{}{
-					"title": "Test title.",
+					"title":  "Test title.",
 					"detail": "Test detail",
 					"source": map[string]interface{}{
 						"parameter": "filter",
-						"pointer": "/data/attributes/field",
+						"pointer":   "/data/attributes/field",
 					},
 				},
-			}},
+				}},
 		},
 		"TestLinksFieldIsSerializedProperly": {
-			In:    []*jsonapi.ErrorObject{{
-				Title: "Test title.",
+			In: []*jsonapi.ErrorObject{{
+				Title:  "Test title.",
 				Detail: "Test detail",
 				Links: &jsonapi.ErrorLink{
 					About: "/url/to/details",
@@ -92,7 +92,7 @@ func TestMarshalErrorsWritesTheExpectedPayload(t *testing.T) {
 			}},
 			Out: map[string]interface{}{
 				"errors": []interface{}{map[string]interface{}{
-					"title": "Test title.",
+					"title":  "Test title.",
 					"detail": "Test detail",
 					"links": map[string]interface{}{
 						"about": "/url/to/details",

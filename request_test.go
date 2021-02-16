@@ -1297,8 +1297,8 @@ func TestUnmarshalNestedStructSlice(t *testing.T) {
 	}
 }
 
-func TestNumericTypes(t *testing.T)  {
-	var tests = map[string]struct{
+func TestNumericTypes(t *testing.T) {
+	var tests = map[string]struct {
 		In map[string]interface{}
 	}{
 		"Int": {
@@ -1324,7 +1324,6 @@ func TestNumericTypes(t *testing.T)  {
 
 	}
 	type pLoad struct {
-
 	}
 	out := new(Numeric)
 	for name, test := range tests {
@@ -1347,7 +1346,6 @@ func TestNumericTypes(t *testing.T)  {
 				t.Fatal(err)
 			}
 		})
-
 
 	}
 }
