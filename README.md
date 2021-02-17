@@ -1,6 +1,6 @@
 # jsonapi
 
-[![Build Status](https://travis-ci.org/cheeryfella/jsonapi.svg?branch=master)](https://travis-ci.org/google/jsonapi)
+[![CircleCI](https://circleci.com/gh/cheeryfella/jsonapi.svg?style=svg)](https://circleci.com/gh/cheeryfella/jsonapi)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cheeryfella/jsonapi)](https://goreportcard.com/report/github.com/cheeryfella/jsonapi)
 [![GoDoc](https://godoc.org/github.com/cheeryfella/jsonapi?status.svg)](http://godoc.org/github.com/cheeryfella/jsonapi)
 
